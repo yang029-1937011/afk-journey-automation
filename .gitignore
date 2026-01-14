@@ -73,3 +73,10 @@ Thumbs.db
 
 # Logs
 *.log
+
+*.bat
+RELEASE.md
+main.build/
+main.dist/
+main.onefile-build/
+*.exe
