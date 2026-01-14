@@ -1,12 +1,12 @@
-from PIL import Image
-import mss
-import numpy as np
-import cv2
+"""Click simulation utilities for automated game interaction."""
+
+import os
 import random
+
+import cv2
+import numpy as np
 from pywinauto import mouse, Application
 from screeninfo import get_monitors
-import time
-import os
 
 from .screenshot import screenshot_monitor
 from .image_matching import findMatchings

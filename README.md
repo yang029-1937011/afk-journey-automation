@@ -4,13 +4,11 @@
 AFK Journey Automation is a Python project designed to automate various tasks in the game AFK Journey. This project utilizes image processing and GUI elements to provide an easy-to-use interface for executing automation functions.
 
 ## Features
-- **Auto Fight** - Automatically battles through stages
-- **Auto P Fight** - Automated battles with dual team confirmation
-- **Auto Fight Friends** - Automated friend battles
-- **Auto P Fight Friends** - Automated friend battles with dual team
+- **Auto Fight** - Automatted afk challenge
+- **Auto P Fight** - Automated Phatimal challenge
+- **Auto Fight Friends** - Automated friend challenge
+- **Auto P Fight Friends** - Automated friend Phatimal challenge
 - **Faction Challenge** - Automated faction challenge battles
-- **Multi-language Support** - Supports EN and CN game clients
-- **Auto Monitor Detection** - Automatically detects which monitor the game is on
 
 ## Project Structure
 ```
@@ -54,7 +52,7 @@ afk-journey-automation
 
 3. Select your language (EN/CN) from the dropdown.
 
-4. Click on the desired automation function to start.
+4. Click on the desired automation function to start. To start the automation, you must enter the battle page first.
 
 5. Click "Stop Automation" to stop the running automation.
 
