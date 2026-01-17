@@ -1,5 +1,6 @@
 """AFK Journey Automation - Main GUI Application."""
 
+import argparse
 import os
 import sys
 import threading
@@ -16,7 +17,7 @@ from automation.game_automation import (
     set_stop_flag,
     stop_automation,
 )
-from automation.click_simulation import set_language
+from automation.click_simulation import set_language, set_debug_mode
 from utils.admin import is_admin, request_admin
 
 
@@ -304,6 +305,24 @@ def create_gui() -> None:
 
 
 if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description="AFK Journey Automation Tool",
+        epilog="Example: AFK-Journey-Automation.exe --debug"
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug mode (show detailed logs for template matching and clicks)"
+    )
+    
+    args = parser.parse_args()
+    
+    # Set debug mode from CLI argument
+    if args.debug:
+        set_debug_mode(True)
+        print("Debug mode enabled via command line")
+    
     # Request administrator privileges if not already elevated
     # This is needed to interact with games that run as admin
     request_admin()

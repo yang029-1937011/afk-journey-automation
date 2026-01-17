@@ -4,7 +4,7 @@ import time
 from typing import Optional, Callable
 from threading import Event
 
-from .click_simulation import clickOnScreenShoot
+from .click_simulation import clickOnScreenShoot, findImageLocation, click
 
 
 # =============================================================================
@@ -30,8 +30,8 @@ class BattleConfig:
     """Configuration for different battle types."""
     AUTO_FIGHT = {"max_rounds": 5000, "max_fails": 60, "fail_threshold": 6, "battle_checks": 100}
     AUTO_P_FIGHT = {"max_rounds": 5000, "max_fails": 60, "fail_threshold": 3, "battle_checks": 100}
-    FRIENDS = {"max_rounds": 500, "max_fails": 15, "fail_threshold": 2, "battle_checks": 9}
-    FACTION = {"max_rounds": 5000, "max_fails": 15, "fail_threshold": 2, "battle_checks": 9}
+    FRIENDS = {"max_rounds": 500, "max_fails": 15, "fail_threshold": 2, "battle_checks": 100}
+    FACTION = {"max_rounds": 5000, "max_fails": 15, "fail_threshold": 2, "battle_checks": 100}
 
 
 # Image assets
@@ -80,13 +80,36 @@ def should_stop() -> bool:
 
 def _select_team(fail_count: int, fail_threshold: int) -> None:
     """Select a team from the records based on fail count."""
+    if should_stop():
+        return
+    
     clickOnScreenShoot(Images.RECORD)
     time.sleep(Delays.RECORD)
     
-    # Navigate to the appropriate team based on failures
-    for _ in range(fail_count // fail_threshold):
-        clickOnScreenShoot(Images.NEXT, focus=False)
-        time.sleep(Delays.NEXT)
+    if should_stop():
+        return
+    
+    # Calculate how many times to click next
+    next_clicks = fail_count // fail_threshold
+    
+    if next_clicks > 0:
+        # Find NEXT button location once
+        next_location = findImageLocation(Images.NEXT)
+        
+        if next_location:
+            # Click the same location multiple times
+            for i in range(next_clicks):
+                if should_stop():
+                    print("Team selection interrupted by stop request")
+                    return
+                click(next_location[0], next_location[1], focus=False)
+                time.sleep(Delays.NEXT)
+        else:
+            # Fallback: use the old method if location not found
+            print("Warning: NEXT button not found, skipping navigation")
+    
+    if should_stop():
+        return
     
     clickOnScreenShoot(Images.ADOPT_TEAM, focus=False)
     time.sleep(Delays.ADOPT)
@@ -94,14 +117,29 @@ def _select_team(fail_count: int, fail_threshold: int) -> None:
 
 def _start_battle(double_confirm: bool = False) -> None:
     """Start a battle with optional double confirmation."""
+    if should_stop():
+        return
+    
     clickOnScreenShoot(Images.CHECK_MARK, focus=False)
     time.sleep(Delays.CHECK_MARK)
+    
+    if should_stop():
+        return
+    
     clickOnScreenShoot(Images.FIGHT, focus=False)
     
     if double_confirm:
         time.sleep(Delays.FIGHT * 2)
+        
+        if should_stop():
+            return
+        
         clickOnScreenShoot(Images.CHECK_MARK, focus=False)
         time.sleep(Delays.CHECK_MARK)
+        
+        if should_stop():
+            return
+        
         clickOnScreenShoot(Images.FIGHT, focus=False)
 
 
@@ -124,6 +162,11 @@ def _wait_for_battle_result(
         True if battle was won, False if lost.
     """
     for _ in range(max_checks):
+        # Check stop flag in the battle waiting loop
+        if should_stop():
+            print("Battle result check interrupted by stop request")
+            return False
+        
         if clickOnScreenShoot(Images.FIGHT_AGAIN, focus=False):
             print("battle lost")
             return False
@@ -225,7 +268,11 @@ def autoFightFriends() -> None:
     fail = 0
     
     def on_win():
+        if should_stop():
+            return
         time.sleep(Delays.WIN_TRANSITION)
+        if should_stop():
+            return
         clickOnScreenShoot(Images.CHALLENGE, focus=False)
     
     while rounds > 0 and fail < config["max_fails"]:
@@ -263,7 +310,11 @@ def autoPFightFriends() -> None:
     fail = 0
     
     def on_win():
+        if should_stop():
+            return
         time.sleep(Delays.WIN_TRANSITION)
+        if should_stop():
+            return
         clickOnScreenShoot(Images.CHALLENGE3, focus=False)
     
     while rounds > 0 and fail < config["max_fails"]:

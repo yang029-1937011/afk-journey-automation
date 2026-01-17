@@ -18,8 +18,9 @@ from .image_matching import findMatchings
 CLICK_DEVIATION_RANGE = 5  # Random pixel deviation for more human-like clicks
 DEFAULT_MONITOR = 1
 
-# Global variable for language/asset path
+# Global variables
 _current_language = "EN"
+_debug_mode = False  # Toggle for debug output
 
 
 def _get_base_path() -> str:
@@ -141,7 +142,8 @@ def simulateClickOnImage(
     targetImage: str,
     min_x: int = -9999,
     min_y: int = -9999,
-    focus: bool = True
+    focus: bool = True,
+    monitor_number: int = None
 ) -> bool:
     """
     Find a target image within a screenshot and click on it.
@@ -152,36 +154,105 @@ def simulateClickOnImage(
         min_x: Minimum x coordinate for valid matches.
         min_y: Minimum y coordinate for valid matches.
         focus: Whether to focus the game window before clicking.
+        monitor_number: The monitor number the screenshot was taken from (for offset calculation)
         
     Returns:
         True if the image was found and clicked, False otherwise.
     """
     asset_path = get_asset_path(targetImage)
     
+    _debug_print(f"Looking for template: {targetImage}")
+    _debug_print(f"Template path: {asset_path}")
+    
     template = cv2.imread(asset_path, 0)
     if template is None:
         print(f"Warning: Could not load template image: {asset_path}")
         return False
     
-    h, w = template.shape[:2]
+    _debug_print(f"Template size: {template.shape}")
+    _debug_print(f"Screenshot size: {main_image.shape}")
+    
     loc = findMatchings(main_image, template)
     
     if not loc:
+        _debug_print(f"No matches found for {targetImage}")
         return False
     
+    _debug_print(f"Found {len(loc)} match(es) for {targetImage}")
+    
     # Find first match that meets minimum coordinate requirements
-    for pt in loc:
+    # Note: findMatchings returns center coordinates directly
+    for i, pt in enumerate(loc):
+        _debug_print(f"Match {i+1} at relative position: ({pt[0]}, {pt[1]})")
+        
         if pt[0] >= min_x and pt[1] >= min_y:
-            # Calculate center of matched region with random deviation
-            match_x = pt[0] + w // 2 + random.randint(-CLICK_DEVIATION_RANGE, CLICK_DEVIATION_RANGE)
-            match_y = pt[1] + h // 2 + random.randint(-CLICK_DEVIATION_RANGE, CLICK_DEVIATION_RANGE)
+            # Add random deviation for more human-like clicking
+            deviation_x = random.randint(-CLICK_DEVIATION_RANGE, CLICK_DEVIATION_RANGE)
+            deviation_y = random.randint(-CLICK_DEVIATION_RANGE, CLICK_DEVIATION_RANGE)
+            match_x = pt[0] + deviation_x
+            match_y = pt[1] + deviation_y
+            
+            _debug_print(f"Applied deviation: ({deviation_x}, {deviation_y})")
+            _debug_print(f"Adjusted match position: ({match_x}, {match_y})")
 
             # Convert to screen coordinates
-            offset_x, offset_y = get_game_window_offset()
-            click(offset_x + match_x, offset_y + match_y, focus=focus)
+            # Use monitor offset if provided, otherwise use game window offset
+            if monitor_number is not None:
+                offset_x, offset_y = get_monitor_offset(monitor_number)
+            else:
+                offset_x, offset_y = get_game_window_offset()
+            
+            screen_x = offset_x + match_x
+            screen_y = offset_y + match_y
+            
+            _debug_print(f"Monitor/Window offset: ({offset_x}, {offset_y})")
+            _debug_print(f"Final screen coordinates: ({screen_x}, {screen_y})")
+            print(f"✓ '{targetImage}' matched at ({pt[0]}, {pt[1]}) -> clicking at screen ({screen_x}, {screen_y})")
+            
+            click(screen_x, screen_y, focus=focus)
             return True
     
+    _debug_print(f"No valid matches found (all below min_x={min_x}, min_y={min_y})")
     return False
+
+
+def findImageLocation(targetImage: str) -> Optional[Tuple[int, int]]:
+    """
+    Find a target image in the game window without clicking.
+    
+    Args:
+        targetImage: The filename of the template image to find.
+        
+    Returns:
+        Tuple of (screen_x, screen_y) coordinates if found, None otherwise.
+    """
+    monitor = get_game_monitor()
+    screenshot = screenshot_monitor(monitor)
+    
+    if screenshot is None:
+        return None
+    
+    asset_path = get_asset_path(targetImage)
+    template = cv2.imread(asset_path, 0)
+    
+    if template is None:
+        return None
+    
+    loc = findMatchings(screenshot, template)
+    
+    if not loc:
+        return None
+    
+    # Get first match
+    pt = loc[0]
+    
+    # Convert to screen coordinates
+    offset_x, offset_y = get_monitor_offset(monitor)
+    screen_x = offset_x + pt[0]
+    screen_y = offset_y + pt[1]
+    
+    _debug_print(f"Found '{targetImage}' at screen coordinates ({screen_x}, {screen_y})")
+    return (screen_x, screen_y)
 
 
 def clickOnScreenShoot(targetImage: str, focus: bool = True) -> bool:
@@ -196,5 +267,43 @@ def clickOnScreenShoot(targetImage: str, focus: bool = True) -> bool:
         True if the image was found and clicked, False otherwise.
     """
     monitor = get_game_monitor()
+    _debug_print(f"Taking screenshot from monitor {monitor}")
     screenshot = screenshot_monitor(monitor)
-    return simulateClickOnImage(screenshot, targetImage, focus=focus)
+    return simulateClickOnImage(screenshot, targetImage, focus=focus, monitor_number=monitor)
+
+
+def set_debug_mode(enabled: bool) -> None:
+    """Enable or disable debug output."""
+    global _debug_mode
+    _debug_mode = enabled
+
+
+def is_debug_mode() -> bool:
+    """Check if debug mode is enabled."""
+    return _debug_mode
+
+
+def _debug_print(message: str) -> None:
+    """Print debug message if debug mode is enabled."""
+    if _debug_mode:
+        print(f"[DEBUG] {message}")
+
+
+def get_monitor_offset(monitor_number: int) -> Tuple[int, int]:
+    """
+    Get the monitor's position offset in absolute screen coordinates.
+    
+    Args:
+        monitor_number: Monitor number (1-indexed)
+        
+    Returns:
+        Tuple of (x, y) coordinates for the monitor's top-left corner.
+    """
+    monitors = get_monitors()
+    if monitor_number < 1 or monitor_number > len(monitors):
+        _debug_print(f"Invalid monitor number {monitor_number}, using monitor 1")
+        monitor_number = 1
+    
+    monitor = monitors[monitor_number - 1]
+    _debug_print(f"Monitor {monitor_number} offset: ({monitor.x}, {monitor.y})")
+    return monitor.x, monitor.y

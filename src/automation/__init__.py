@@ -11,6 +11,8 @@ from .click_simulation import (
     get_asset_path,
     get_game_monitor,
     get_game_window,
+    set_debug_mode,
+    is_debug_mode,
 )
 from .game_automation import (
     autoFight,
@@ -36,6 +38,8 @@ __all__ = [
     "get_asset_path",
     "get_game_monitor",
     "get_game_window",
+    "set_debug_mode",
+    "is_debug_mode",
     # Game automation
     "autoFight",
     "autoPFightFriends",
